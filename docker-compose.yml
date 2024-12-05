@@ -6,6 +6,8 @@ services:
       - "3000:3000"
     environment:
       - PORT=3000
+    depends_on:
+      - mongo
   mongo:
     image: mongo
     environment:
@@ -13,3 +15,7 @@ services:
       - MONGO_INITDB_ROOT_PASSWORD=admin
     volumes:
       - mongo-db:/data/db
+  redis:
+    image: redis
+volumes:
+  mongo-db:      
