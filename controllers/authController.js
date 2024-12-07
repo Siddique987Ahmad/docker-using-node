@@ -8,6 +8,7 @@ const signup=async(req,res)=>{
             userName,
             password:hashPassword,
         })
+        req.session.user=newUser
         res.status(200).json(user)
     } catch (error) {
         res.status(400).json({
@@ -36,6 +37,21 @@ const login=async(req,res)=>{
         } else {
             res.status(404).json("username or password incorrect")
         }
+        // if (!isCorrect) {
+        //     return res.status(401).json({ message: "Invalid username or password" });
+        //   }
+        //   if (!req.session) {
+        //     console.error("Session is undefined!");
+        //     return res.status(500).json({ message: "Session setup failed" });
+        //   }
+        //   // Save user to session
+        //   req.session.user = user;
+        //   console.log("Session after login:", req.session);
+      
+        //   res.status(200).json({
+        //     status: "success",
+        //     message: "Login successful",
+        //   });
 
     } catch (error) {
         console.error("Error during login:", error); // Log the actual error

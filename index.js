@@ -1,82 +1,8 @@
-// const express = require("express");
-// const mongoose = require("mongoose");
-
-// const app = express();
-// //mongodb
-// const {
-//   MONGO_USER,
-//   MONGO_PASSWORD,
-//   MONGO_IP,
-//   MONGO_PORT,
-//   SESSION_SECRET,
-//   REDIS_URL,
-//   REDIS_PORT,
-// } = require("./config/config");
-// const connectWithRetry = () => {
-//   mongoose
-//     .connect(
-//       `mongodb://${MONGO_USER}:${MONGO_PASSWORD}@${MONGO_IP}:${MONGO_PORT}/?authSource=admin`
-//     )
-//     .then(() => console.log("mongodb connected"))
-//     .catch((e) => {
-//       console.log(e);
-//       setTimeout(connectWithRetry, 5000);
-//     });
-// };
-// connectWithRetry();
-// //Redis
-// const session = require("express-session");
-// const redis = require("redis");
-// //let RedisStore = require("connect-redis").default;
-// let RedisStore=require('connect-redis')(session)
-// let redisClient = redis.createClient({
-//   // host: REDIS_URL,
-//   // port: REDIS_PORT,
-//   url: `redis://${REDIS_URL}:${REDIS_PORT}`, // Ensure REDIS_URL and REDIS_PORT are defined
-// });
-// console.log(`redis://${REDIS_URL}:${REDIS_PORT}`)
-// redisClient.on("error", (err) => console.error("Redis Client Error", err));
-// (async () => {
-//   await redisClient.connect(); // Explicitly connect the Redis client
-//   console.log("Redis connected successfully");
-// })();
-// app.use(
-//   session({
-//     store: new RedisStore({ client: redisClient }),
-//     secret: SESSION_SECRET,
-//     resave: false,
-//     saveUninitialized: false,
-//     cookie: {
-//       secure: false,
-//       httpOnly: true,
-//       maxAge: 1000 * 60 * 60,
-//     },
-//   })
-// );
-
-
-// //middleware
-// app.use(express.json());
-// app.use(express.urlencoded({ extended: true }));
-// app.get("/", (req, res) => {
-//   res.send("<h1>Hello !! <h1>");
-// });
-// //routes
-// const postRoute = require("./routes/postRoutes");
-// const userRoute = require("./routes/userRoutes");
-// app.use("/api/v1/post", postRoute);
-// app.use("/api/v1/user", userRoute);
-// //port
-// const port = process.env.PORT || 3000;
-// app.listen(port, () => {
-//   console.log(`App is running on port ${port}`);
-// });
-
 const express = require("express");
 const mongoose = require("mongoose");
 const session = require("express-session");
 const redis = require("redis");
-
+let RedisStore = require("connect-redis")(session);
 const {
   MONGO_USER,
   MONGO_PASSWORD,
@@ -86,7 +12,22 @@ const {
   REDIS_URL,
   REDIS_PORT,
 } = require("./config/config");
+// let redisClient = redis.createClient({
+//   host: REDIS_URL,
+//   port: REDIS_PORT,
+// });
 
+//Redis connection
+const redisClient = redis.createClient({ 
+  url: `redis://${REDIS_URL}:${REDIS_PORT}`,
+  legacyMode: true, // Enable legacy mode for compatibility
+});
+redisClient.on("connect", () => console.log("Redis client connected"));
+
+redisClient.on("error", (err) => console.error("Redis Client Error", err));
+
+const postRoutes = require("./routes/postRoutes");
+const userRoutes = require("./routes/userRoutes");
 const app = express();
 
 // MongoDB connection
@@ -102,43 +43,34 @@ const connectWithRetry = () => {
     });
 };
 connectWithRetry();
-
-// Redis connection
-const redisClient = redis.createClient({ url: `redis://${REDIS_URL}:${REDIS_PORT}` });
-redisClient.on("error", (err) => console.error("Redis Client Error", err));
-
-(async () => {
-  try {
-    await redisClient.connect();
-    console.log("Redis connected successfully");
-
-    const RedisStore = require("connect-redis")(session);
-    app.use(
-      session({
-        store: new RedisStore({ client: redisClient }),
-        secret: SESSION_SECRET,
-        resave: false,
-        saveUninitialized: false,
-        cookie: {
-          secure: false,
-          httpOnly: true,
-          maxAge: 1000 * 60 * 60,
-        },
-      })
-    );
-  } catch (err) {
-    console.error("Error connecting Redis:", err);
-  }
-})();
-
+redisClient.connect().catch(console.error);
+app.use(
+  session({
+    store: new RedisStore({ client: redisClient }),
+    secret: SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: false,
+      httpOnly: true,
+      maxAge: 30000000,
+    },
+  })
+);
+console.log("Session middleware initialized");
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
-const postRoutes = require("./routes/postRoutes");
-const userRoutes = require("./routes/userRoutes");
-
+//Test Route for Debugging Sessions
+app.get("/test-session", (req, res) => {
+  console.log("Session before setting:", req.session); // Log session before setting
+  req.session.test = "This is a test session value";
+  console.log("Session after setting:", req.session); // Log session after setting
+  res.json({ session: req.session });
+  res.end();
+});
 app.use("/api/v1/post", postRoutes);
 app.use("/api/v1/user", userRoutes);
 
