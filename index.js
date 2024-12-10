@@ -2,7 +2,8 @@ const express = require("express");
 const mongoose = require("mongoose");
 const session = require("express-session");
 const redis = require("redis");
-let RedisStore = require("connect-redis")(session);
+//const cors=require('cors')
+const {RedisStore} = require("connect-redis");
 const {
   MONGO_USER,
   MONGO_PASSWORD,
@@ -26,6 +27,8 @@ redisClient.on("connect", () => console.log("Redis client connected"));
 
 redisClient.on("error", (err) => console.error("Redis Client Error", err));
 
+redisClient.connect().catch(console.error);
+
 const postRoutes = require("./routes/postRoutes");
 const userRoutes = require("./routes/userRoutes");
 const app = express();
@@ -43,10 +46,18 @@ const connectWithRetry = () => {
     });
 };
 connectWithRetry();
-redisClient.connect().catch(console.error);
+app.enable("trust proxy")
+//app.use(cors({}))
+// let redisStore = new RedisStore({
+//   client: redisClient,
+// });
+
+//const redisStore = RedisStore(session); // Pass the session module to RedisStore
+const redisStore =new RedisStore({ client: redisClient }); // Correct way to initialize RedisStore
+
 app.use(
   session({
-    store: new RedisStore({ client: redisClient }),
+    store: redisStore,
     secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
@@ -63,14 +74,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
-//Test Route for Debugging Sessions
-app.get("/test-session", (req, res) => {
-  console.log("Session before setting:", req.session); // Log session before setting
-  req.session.test = "This is a test session value";
-  console.log("Session after setting:", req.session); // Log session after setting
-  res.json({ session: req.session });
-  res.end();
-});
+app.get('/api/v1',(req,res)=>{
+  res.send("<h1>heloo</h1>")
+  console.log("yes run")
+})
 app.use("/api/v1/post", postRoutes);
 app.use("/api/v1/user", userRoutes);
 
